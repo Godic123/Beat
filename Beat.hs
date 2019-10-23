@@ -10,8 +10,8 @@ data Card = Missing | Three | Four | Five | Six | Seven | Eight | Nine | Ten | J
 
 
 
-type Game = [Card] -> [Card] -> [Card] -> IO [Char]
-type ActionType = Card -> [Card] -> IO (Card, [Card])
+type Game = [Card] -> [Card] -> [Card] -> Bool -> Bool -> Card -> IO [Char]
+type ActionType = Card -> [Card] -> Bool -> Bool -> IO (Card, [Card], Bool, Bool)
 type ParseIntoCardType = [Int] -> [Card]
 type ParseIntoIntType = [Card] -> [Int]
 type ParseIntoInt = [String] -> [Int]
@@ -20,26 +20,28 @@ type ParseIntoInt = [String] -> [Int]
 type TournammentState = (Int,Int,Int)   -- wins, losses, ties
 
 --------- Game ---------
+play = beat [Three, Three, Four, Five, Six, Six, Eight, Nine, Nine, Nine, Ten, J, J, Q, Q, K, A] [Three, Four, Four, Five, Six, Seven, Seven, Seven, Seven, Eight, Ten, Ten, Ten, J, K, A, Two, Two] [Three, Four, Five, Six, Eight, Eight, Nine, J, Q, Q, K, K, A, A, Two, Two] True True Missing
 
 beat:: Game
-beat hand_p1 hand_p2 hand_p3 = 
+beat hand_p1 hand_p2 hand_p3 b1 b2 firstelement= 
     do
     -- for the fist player's turn:
         putStrLn ("Player 1's turn. These are your cards:")
-        v <- action Missing hand_p1
-        let (firstelement, hand1_) = v
+        v <- action firstelement hand_p1 b1 b2
+        let (firstelement, hand1_, b1, b2) = v
         -- TBI: we need to check if the hand was modified so that we can tell if this player played
         -- now we have the mode & highest card for the turn
         if hand1_ == []
             then 
+
                 return ("Player 1 has won the game")
             -- if the player1 did not finish their cards on hand, then we proceed to the next player
             else
     -- for the second player's turn:
                 do
                     putStrLn ("Player 2's turn. These are your cards:")
-                    v <- action firstelement hand_p2
-                    let (firstelement,hand2_) = v
+                    v <- action firstelement hand_p2 b1 b2
+                    let (firstelement,hand2_, b1, b2) = v
                     -- TBI: we need to check if the hand was modified so that we can tell if this player played
                     if (hand2_) == []
                         then return ("Player 2 has won the game")
@@ -48,22 +50,21 @@ beat hand_p1 hand_p2 hand_p3 =
                             do
     -- for the third player's turn:
                                 putStrLn ("Player 3's turn. These are your cards:")
-                                v <- action firstelement hand_p3
-                                let (firstelement, hand3_) = v
+                                v <- action firstelement hand_p3 b1 b2
+                                let (firstelement, hand3_, b1, b2) = v
                                 -- TBI: we need to check if the hand was modified so that we can tell if this player played
                                 if (hand3_) == []
                                     then return ("Player 3 has won the game")
-                                    else beat hand1_ hand2_ hand3_
+                                    else beat hand1_ hand2_ hand3_ b1 b2 firstelement
 
 --------- Action ---------
 
 action :: ActionType
-action largestCard hand_b =
+action largestCard hand_b b1 b2=
     do 
         print hand_b
-        putStrLn ("What are the cards you want to play?")
-
-        -- play = [Int]
+        putStrLn ("What are the cards you want to play? Play 0 to pass.")
+        
         play <- getLine
         --let a = lines play
         --check if the player chose to pass
@@ -71,7 +72,12 @@ action largestCard hand_b =
             then
             if  (play == "0")
         -- if the player passes, then everything returns unmodified
-                then return (largestCard, hand_b)
+                then if (b1 && b2)
+                    then return (largestCard, hand_b, False, b2)
+                    else if (b1 == False && b2)
+                        then return (largestCard, hand_b, b1, False)
+                        else 
+                            return (largestCard, hand_b, True, True)
         -- otherwise, we get rid of the cards played from the player's hand
                 else
         -- checks if the input is in the hand and if it is correct
@@ -85,24 +91,30 @@ action largestCard hand_b =
         -- this firstelement is to be compared with the largestCard so far
                             let firstelement = head playedCard
         -- TBI: determine the mode as well!!
-                            if (firstelement > largestCard)
-                                then return (firstelement, (parseIntoCard hand_a))
-                                else do 
-                                    putStrLn ("Must be bigger than the last card played, try again.")
-                                    action largestCard hand_b
+                            if (b1 || b2)
+                                then if (firstelement > largestCard)
+                                    then return (firstelement, (parseIntoCard hand_a), True, True)
+                                    else do 
+                                        putStrLn ("Must be bigger than: ")
+                                        print largestCard
+                                        putStrLn ("Try again.")
+                                        action largestCard hand_b b1 b2
+                                else 
+                                    return (firstelement, (parseIntoCard hand_a), True, True)
                         else 
                         do
                             putStrLn ("Invalid input, try again")
-                            action largestCard hand_b
+                            action largestCard hand_b b1 b2
             else 
             do
                 putStrLn ("Invalid input, try again")
-                action largestCard hand_b
+                action largestCard hand_b b1 b2
 
 
 
 
 --------- Helper Functions ---------
+                    
 isin lst1 lst2 
     | head lst1 `elem` lst2 = True
     | otherwise = False
