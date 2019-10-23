@@ -1,5 +1,6 @@
 module Beat where
 
+import System.Random
 
 -- kinds of cards
 data Card = Missing | Three | Four | Five | Six | Seven | Eight | Nine | Ten | J | Q | K | A | Two | S_Joker | B_Joker | Error
@@ -21,6 +22,8 @@ type TournammentState = (Int,Int,Int)   -- wins, losses, ties
 
 --------- Game ---------
 play = beat [Three, Three, Four, Five, Six, Six, Eight, Nine, Nine, Nine, Ten, J, J, Q, Q, K, A] [Three, Four, Four, Five, Six, Seven, Seven, Seven, Seven, Eight, Ten, Ten, Ten, J, K, A, Two, Two] [Three, Four, Five, Six, Eight, Eight, Nine, J, Q, Q, K, K, A, A, Two, Two] True True Missing
+
+deck = [Three, Three, Four, Five, Six, Six, Eight, Nine, Nine, Nine, Ten, J, J, Q, Q, K, A, Three, Four, Four, Five, Six, Seven, Seven, Seven, Seven, Eight, Ten, Ten, Ten, J, K, A, Two, Two, Three, Four, Five, Six, Eight, Eight, Nine, J, Q, Q, K, K, A, A, Two, Two]
 
 beat:: Game
 beat hand_p1 hand_p2 hand_p3 b1 b2 firstelement= 
@@ -63,7 +66,7 @@ action :: ActionType
 action largestCard hand_b b1 b2=
     do 
         print hand_b
-        putStrLn ("What are the cards you want to play? Play 0 to pass.")
+        putStrLn ("What are the cards you want to play? Play 0 to pass. Play the numerical representaion of the card aside from J, Q, K, and A.")
         
         play <- getLine
         --let a = lines play
@@ -239,3 +242,32 @@ parseIntoIntFromChar (h:t)
     | (h == "2") = [2]
     | otherwise = []
 --
+
+shuffle :: [a] -> IO [a]
+shuffle [] = return []
+shuffle xs = do randomPosition <- getStdRandom (randomR (0, length xs - 1))
+                let (left, (a:right)) = splitAt randomPosition xs
+                fmap (a:) (shuffle (left ++ right))
+
+splitEvery _ [] = []
+splitEvery n list = first : (splitEvery n rest)
+  where
+    (first,rest) = splitAt n list
+
+start = 
+    do 
+        v <- shuffle deck
+        return (splitEvery 18 v)
+
+playgame = 
+    do
+        putStrLn ("Shuffling...")
+        v <- start
+        beat (quicksort (head v)) (quicksort (head(tail v))) (quicksort (head(tail(tail v)))) True True Missing
+
+quicksort :: Ord a => [a] -> [a]
+quicksort []     = []
+quicksort (p:xs) = (quicksort lesser) ++ [p] ++ (quicksort greater)
+    where
+        lesser  = filter (< p) xs
+        greater = filter (>= p) xs
